@@ -31,9 +31,6 @@ public class KafkaConsumerService {
         RestTemplate restTemplate = new RestTemplate();
         String url = "http://localhost:8090/api/message";
         ResponseEntity<String> result = restTemplate.postForEntity(url, message, String.class);
-        if (result.getStatusCode().is5xxServerError()) {
-            kafkaTemplate.send("error-topic", message);
-        }
     }
 
     public void errorListen(String message) {
