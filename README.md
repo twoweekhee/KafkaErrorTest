@@ -1,7 +1,11 @@
 # KafkaErrorTest
 
-![스크린샷 2024-08-20 오후 2 21 01](https://github.com/user-attachments/assets/d84f04a9-aa5b-4dbb-be14-f9e54b493e60)
-
+- 리스너에서는 레코드를 받았지만 받아서 서비스 로직에서 에러가 발생하여 정상처리가 안되었을 때
+- errorHandler 사용 및 @SendTo
+<br>
+  
+![스크린샷 2024-08-20 오후 2 26 40](https://github.com/user-attachments/assets/93a2db45-8fc6-4814-815d-a21ccd5e3020)
+<br>
 
 ```java
 @Slf4j
