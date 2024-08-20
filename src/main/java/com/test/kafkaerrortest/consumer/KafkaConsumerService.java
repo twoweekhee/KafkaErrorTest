@@ -29,7 +29,7 @@ public class KafkaConsumerService {
 
     public void listen(String message) {
         RestTemplate restTemplate = new RestTemplate();
-        String url = "http://localhost:8090/api/message";
+        String url = "http://localhost:8070/api/message";
         ResponseEntity<String> result = restTemplate.postForEntity(url, message, String.class);
     }
 
@@ -38,7 +38,7 @@ public class KafkaConsumerService {
         log.info("### error: " + message);
 
         RestTemplate restTemplate = new RestTemplate();
-        String url = "http://localhost:8090/api/message/error";
+        String url = "http://localhost:8070/api/message/error";
 
         ResponseEntity<String> result = restTemplate.postForEntity(url, message, String.class);
     }

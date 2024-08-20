@@ -17,6 +17,8 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.KafkaListenerErrorHandler;
 
+
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -76,6 +78,29 @@ public class KafkaConsumerConfig {
                 // 추출된 message 값 로그로 출력
                 log.error("[KafkaErrorHandler] Extracted message=[" + message + "], errorMessage=[" + e.getMessage() + "]");
 
+                // 이후 처리할 메시지를 반환
+                return message;  // message 값만 반환하여 sendTo 토픽으로 전송
+            } catch (Exception ex) {
+                log.error("[KafkaErrorHandler] Failed to parse JSON payload, error: " + ex.getMessage());
+                return m.getPayload();  // 파싱 실패 시 원본 payload 반환
+            }
+        };
+    }
+
+    @Bean
+    public KafkaListenerErrorHandler kafkaErrorHandlerSecond(){
+        return (m, e) -> {
+            try {
+                // m.getPayload()를 JsonNode로 파싱
+                JsonNode jsonNode = objectMapper.readTree(m.getPayload().toString());
+
+                // "message" 필드의 값 추출
+                String message = jsonNode.path("message").asText();
+
+                // 추출된 message 값 로그로 출력
+                log.error("[KafkaErrorHandler] Extracted message=[" + message + "], errorMessage=[" + e.getMessage() + "]");
+
+                Thread.sleep(1000000);
                 // 이후 처리할 메시지를 반환
                 return message;  // message 값만 반환하여 sendTo 토픽으로 전송
             } catch (Exception ex) {

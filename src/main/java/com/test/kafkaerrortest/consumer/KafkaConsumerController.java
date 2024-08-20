@@ -31,7 +31,7 @@ public class KafkaConsumerController {
         kafkaConsumerService.listen(message);
     }
 
-    @KafkaListener(topics = "error-topic", groupId = "kafkaGroup2" , errorHandler = "kafkaErrorHandler")
+    @KafkaListener(topics = "error-topic", groupId = "kafkaGroup2" , errorHandler = "kafkaErrorHandlerSecond")
     @SendTo("error-topic")
     public void errorListener(String message) {
         log.info("errorListener {} ", message);
