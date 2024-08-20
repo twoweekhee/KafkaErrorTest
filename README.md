@@ -12,7 +12,6 @@
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api")
-@CrossOrigin(origins = "http://localhost:3001")
 public class KafkaConsumerController {
 
     private final KafkaConsumerService kafkaConsumerService;
