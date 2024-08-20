@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: KafkaErrorTest
+
+  kafka:
+    producer:
+      bootstrap-servers: localhost:9092
+#    listener:
+#      ack-mode: MANUAL
+#      type: SINGLE
+    consumer:
+      bootstrap-servers: localhost:9092
+      auto-offset-reset: earliest
+      group-id: kafkaGroup1
+#      enable-auto-commit: false
+    test-topic:
+      name: normal-topic
+    error-topic:
+      name: error-topic
