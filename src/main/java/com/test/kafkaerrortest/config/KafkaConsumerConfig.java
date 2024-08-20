@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -15,10 +15,12 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.listener.KafkaListenerErrorHandler;
+import org.springframework.util.backoff.FixedBackOff;
 
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -62,6 +64,7 @@ public class KafkaConsumerConfig {
                 = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(this.consumerFactory());
         factory.setReplyTemplate(kafkaTemplate);
+        factory.setCommonErrorHandler(errorHandler(kafkaTemplate));
         return factory;
     }
 
@@ -76,38 +79,34 @@ public class KafkaConsumerConfig {
                 String message = jsonNode.path("message").asText();
 
                 // 추출된 message 값 로그로 출력
-                log.error("[KafkaErrorHandler] Extracted message=[" + message + "], errorMessage=[" + e.getMessage() + "]");
+                log.error("[CustomKafkaErrorHandler] Extracted message=[" + message + "], errorMessage=[" + e.getMessage() + "]");
 
                 // 이후 처리할 메시지를 반환
                 return message;  // message 값만 반환하여 sendTo 토픽으로 전송
             } catch (Exception ex) {
-                log.error("[KafkaErrorHandler] Failed to parse JSON payload, error: " + ex.getMessage());
+                log.error("[CustomKafkaErrorHandler] Failed to parse JSON payload, error: " + ex.getMessage());
                 return m.getPayload();  // 파싱 실패 시 원본 payload 반환
             }
         };
     }
 
     @Bean
-    public KafkaListenerErrorHandler kafkaErrorHandlerSecond(){
-        return (m, e) -> {
-            try {
-                // m.getPayload()를 JsonNode로 파싱
-                JsonNode jsonNode = objectMapper.readTree(m.getPayload().toString());
+    public DefaultErrorHandler errorHandler(KafkaTemplate<String, String> kafkaTemplate) {
 
-                // "message" 필드의 값 추출
-                String message = jsonNode.path("message").asText();
+        // FixedBackOff 설정: 1초 간격으로 최대 3번 재시도
+        FixedBackOff fixedBackOff = new FixedBackOff(5000L, 5L);
 
-                // 추출된 message 값 로그로 출력
-                log.error("[KafkaErrorHandler] Extracted message=[" + message + "], errorMessage=[" + e.getMessage() + "]");
+        // DefaultErrorHandler 생성
+        return new DefaultErrorHandler(deadLetterPublishingRecoverer(kafkaTemplate), fixedBackOff);
+    }
 
-                Thread.sleep(1000000);
-                // 이후 처리할 메시지를 반환
-                return message;  // message 값만 반환하여 sendTo 토픽으로 전송
-            } catch (Exception ex) {
-                log.error("[KafkaErrorHandler] Failed to parse JSON payload, error: " + ex.getMessage());
-                return m.getPayload();  // 파싱 실패 시 원본 payload 반환
-            }
-        };
+    @Bean
+    public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(KafkaTemplate<String, String> kafkaTemplate) {
+        return new DeadLetterPublishingRecoverer(kafkaTemplate,
+                (record, exception) -> {
+                    // 메시지를 전송할 토픽 지정
+                    return new TopicPartition("dead-letter-topic", record.partition());
+                });
     }
 
 }
