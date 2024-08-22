@@ -1,7 +1,11 @@
 package com.test.kafkaerrortest.config;
 
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.test.kafkaerrortest.dto.MessageDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -18,9 +22,12 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.listener.KafkaListenerErrorHandler;
+import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
+import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.util.backoff.FixedBackOff;
 
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,7 +48,7 @@ public class KafkaConsumerConfig {
 
     private final ObjectMapper objectMapper = new ObjectMapper();  // ObjectMapper 인스턴스 생성
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, MessageDto> kafkaTemplate;
 
     @Bean
     public Map<String, Object> consumerConfig() {
@@ -50,17 +57,20 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,OFFSET_RESET);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.test.kafkaerrortest.dto");
+        props.put(JsonDeserializer.TYPE_MAPPINGS, "messageDto:com.test.kafkaerrortest.dto.MessageDto");
+
         return props;
     }
     @Bean
-    public ConsumerFactory<String, String> consumerFactory() {
+    public ConsumerFactory<String, MessageDto> consumerFactory() {
         return new DefaultKafkaConsumerFactory<>(this.consumerConfig());
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String,String> kafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String,String> factory
+    public ConcurrentKafkaListenerContainerFactory<String,MessageDto> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String,MessageDto> factory
                 = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(this.consumerFactory());
         factory.setReplyTemplate(kafkaTemplate);
@@ -91,7 +101,7 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public DefaultErrorHandler errorHandler(KafkaTemplate<String, String> kafkaTemplate) {
+    public DefaultErrorHandler errorHandler(KafkaTemplate<String, MessageDto> kafkaTemplate) {
 
         // FixedBackOff 설정: 1초 간격으로 최대 3번 재시도
         FixedBackOff fixedBackOff = new FixedBackOff(5000L, 5L);
@@ -101,7 +111,7 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(KafkaTemplate<String, String> kafkaTemplate) {
+    public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(KafkaTemplate<String, MessageDto> kafkaTemplate) {
         return new DeadLetterPublishingRecoverer(kafkaTemplate,
                 (record, exception) -> {
                     // 메시지를 전송할 토픽 지정

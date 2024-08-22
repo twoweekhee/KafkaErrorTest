@@ -1,5 +1,6 @@
 package com.test.kafkaerrortest.producer;
 
+import com.test.kafkaerrortest.dto.MessageDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,10 +16,10 @@ public class KafkaProducerService {
 
     /* Kafka Template 을 이용해 Kafka Broker 전송 */
 
-    private final KafkaTemplate<String,String> kafkaTemplate;
+    private final KafkaTemplate<String, MessageDto> kafkaTemplate;
 
-    public void sendMessage(String message) {
-        log.info("Producer Message : {}",message);
-        kafkaTemplate.send(topicName,message);
+    public void sendMessage(MessageDto messageDto) {
+        log.info("Producer Message : {}",messageDto.getPort());
+        kafkaTemplate.send(topicName, messageDto);
     }
 }

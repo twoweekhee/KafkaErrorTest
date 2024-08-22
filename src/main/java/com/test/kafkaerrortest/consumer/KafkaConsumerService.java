@@ -1,5 +1,6 @@
 package com.test.kafkaerrortest.consumer;
 
+import com.test.kafkaerrortest.dto.MessageDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -11,12 +12,17 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.SendResult;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.awt.*;
+import java.io.IOException;
+import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
 
@@ -26,32 +32,30 @@ import java.util.concurrent.CompletableFuture;
 public class KafkaConsumerService {
 
 
-    private final KafkaTemplate<String,String> kafkaTemplate;
+    private final KafkaTemplate<String, MessageDto> kafkaTemplate;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public void listen(String message) {
-        String url = "http://localhost:8070/api/message";
-        ResponseEntity<String> result = restTemplate.postForEntity(url, message, String.class);
+    public void listen(MessageDto messageDto) {
+        URI uri = UriComponentsBuilder
+                .fromUriString("http://localhost")
+                .port(messageDto.getPort())
+                .path("/api/message")
+                .build().toUri();
+        ResponseEntity<String> result = restTemplate.postForEntity(uri, messageDto.getMessage(), String.class);
     }
 
-    public void errorListen(String message) {
 
-        log.info("### error: " + message);
+    public void errorListen( MessageDto messageDto) {
 
-        String url = "http://localhost:8070/api/message/error";
+        log.info("### error: " + messageDto);
 
-        ResponseEntity<String> result = restTemplate.postForEntity(url, message, String.class);
-    }
+        URI uri = UriComponentsBuilder
+                .fromUriString("http://localhost")
+                .port(messageDto.getPort())
+                .path("/api/message/error")
+                .build().toUri();
 
-    public void retryListen(String message) {
-        log.info("### retry: " + message);
-        try {
-            RetryTemplate retryTemplate = new RetryTemplate();
-            String url = "http://localhost:8070/api/message/error";
-            restTemplate.postForEntity(url, message, String.class);
-        }catch (Exception e) {
-            e.printStackTrace();
-        }
+        ResponseEntity<String> result = restTemplate.postForEntity(uri, messageDto.getMessage(), String.class);
     }
 
 }
